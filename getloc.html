@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Get Coordinates with Map</title>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <style>
+    #map {
+      height: 400px;
+      margin-top: 20px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+    }
+    #coords {
+      margin-top: 10px;
+      font-size: 1.1rem;
+    }
+  </style>
+</head>
+<body class="p-4">
+
+  <button id="getCoordsBtn" class="btn btn-primary">Get My Coordinates</button>
+
+  <div id="coords" class="text-dark font-weight-bold"></div>
+  <div id="map"></div>
+
+  <!-- Location Warning Modal -->
+  <div class="modal fade" id="locationModal" tabindex="-1" role="dialog" aria-labelledby="locationModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content bg-warning text-dark">
+        <div class="modal-header">
+          <h5 class="modal-title" id="locationModalLabel">Location Permission Needed</h5>
+        </div>
+        <div class="modal-body">
+          Please allow location access in your browser.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let getPosition = null;
+    let map = null;
+    let marker = null;
+
+    async function featchLocation() {
+      getPosition = new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject);
+      });
+    }
+
+    async function getCordinates() {
+      await featchLocation();
+
+      let pos = null;
+
+      const timeout = setTimeout(() => {
+        if (!pos && getPosition) {
+          $("#locationModal").modal('show');
+        }
+      }, 5000);
+
+      if (!getPosition) return null;
+
+      pos = await getPosition.catch((err) => {
+        console.error(err);
+        $("#locationModal").modal('hide');
+        clearTimeout(timeout);
+        alert(err.message || "Please allow location to fetch coordinates.");
+        return null;
+      });
+
+      $("#locationModal").modal('hide');
+      clearTimeout(timeout);
+
+      if (!pos) return null;
+
+      return {
+        lat: pos.coords.latitude,
+        long: pos.coords.longitude,
+      };
+    }
+
+    function showOnMap(lat, long) {
+      if (!map) {
+        map = L.map('map').setView([lat, long], 15);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+      } else {
+        map.setView([lat, long], 15);
+      }
+
+      if (marker) {
+        marker.setLatLng([lat, long]);
+      } else {
+        marker = L.marker([lat, long]).addTo(map)
+          .bindPopup("You are here!")
+          .openPopup();
+      }
+    }
+
+    $("#getCoordsBtn").on("click", async () => {
+      const coords = await getCordinates();
+      if (coords) {
+        $("#coords").text(`Latitude: ${coords.lat}, Longitude: ${coords.long}`);
+        showOnMap(coords.lat, coords.long);
+      }
+    });
+  </script>
+</body>
+</html>
